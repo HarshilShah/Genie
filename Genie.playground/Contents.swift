@@ -15,3 +15,17 @@ imageNode.size = frame.size
 scene.addChild(imageNode)
 
 skView.presentScene(scene)
+
+let initialFrame = CGRect(x: 200, y: 100, width: 400, height: 400)
+	.normalized(in: skView.frame)
+let initialPositions = [
+	SIMD2(Float(initialFrame.minX), Float(initialFrame.minY)),
+	SIMD2(Float(initialFrame.maxX), Float(initialFrame.minY)),
+	SIMD2(Float(initialFrame.minX), Float(initialFrame.maxY)),
+	SIMD2(Float(initialFrame.maxX), Float(initialFrame.maxY))
+]
+imageNode.warpGeometry = SKWarpGeometryGrid(
+	columns: 1,
+	rows: 1,
+	destinationPositions: initialPositions
+)
