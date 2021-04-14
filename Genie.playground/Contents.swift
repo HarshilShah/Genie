@@ -32,14 +32,3 @@ imageNode.warpGeometry = SKWarpGeometryGrid(
 
 let finalFrame = CGRect(x: 640, y: 0, width: 50, height: 50)
 	.normalized(in: skView.frame)
-let finalPositions = [
-	SIMD2(Float(finalFrame.minX), Float(finalFrame.minY)),
-	SIMD2(Float(finalFrame.maxX), Float(finalFrame.minY)),
-	SIMD2(Float(finalFrame.minX), Float(finalFrame.maxY)),
-	SIMD2(Float(finalFrame.maxX), Float(finalFrame.maxY))
-]
-imageNode.warpGeometry = SKWarpGeometryGrid(
-	columns: 1,
-	rows: 1,
-	destinationPositions: finalPositions
-)
