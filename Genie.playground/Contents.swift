@@ -2,7 +2,7 @@ import SpriteKit
 import PlaygroundSupport
 
 enum GenieAnimationEdge {
-	case top
+	case top, bottom
 }
 
 enum GenieAnimationDirection {
@@ -82,6 +82,69 @@ func genie(maximized: CGRect, minimized: CGRect, direction: GenieAnimationDirect
 					}
 					.map(SIMD2<Float>.init)
 			}
+			
+		case .bottom:
+			let leftBezierBottomX = Double(maximized.minX)
+			let rightBezierBottomX = Double(maximized.maxX)
+			
+			let leftEdgeDistanceToMove = Double(minimized.minX - maximized.minX)
+			let rightEdgeDistanceToMove = Double(minimized.maxX - maximized.maxX)
+			let verticalDistanceToMove = Double(minimized.minY - maximized.minY)
+			
+			let bezierTopY = Double(minimized.minY)
+			let bezierBottomY = Double(maximized.minY)
+			let bezierHeight = bezierTopY - bezierBottomY
+			
+			return stride(from: 0, to: frameCount, by: 1).map { frame in
+				let fraction = (frame / (frameCount - 1))
+				let slideProgress = max(0, min(1, fraction/slideAnimationEndFraction))
+				let translateProgress = max(0, min(1, (fraction - translateAnimationStartFraction)/(1 - translateAnimationStartFraction)))
+				
+				let translation = translateProgress * verticalDistanceToMove
+				let topEdgeVerticalPosition = min(
+					Double(maximized.maxY) + translation,
+					Double(minimized.maxY)
+				)
+				let bottomEdgeVerticalPosition = Double(maximized.minY) + translation
+				
+				let leftBezierTopX = leftBezierBottomX + (slideProgress * leftEdgeDistanceToMove)
+				let rightBezierTopX = rightBezierBottomX + (slideProgress * rightEdgeDistanceToMove)
+				
+				func leftBezierPosition(forY y: Double) -> Double {
+					switch y {
+					case ..<bezierBottomY:
+						return leftBezierBottomX
+					case bezierBottomY ..< bezierTopY:
+						let progress = ((y - bezierBottomY) / bezierHeight).quadraticEaseInOut
+						return (progress * (leftBezierTopX - leftBezierBottomX)) + leftBezierBottomX
+					default:
+						return leftBezierTopX
+					}
+				}
+				
+				func rightBezierPosition(forY y: Double) -> Double {
+					switch y {
+					case ..<bezierBottomY:
+						return rightBezierBottomX
+					case bezierBottomY ..< bezierTopY:
+						let progress = ((y - bezierBottomY) / bezierHeight).quadraticEaseInOut
+						return (progress * (rightBezierTopX - rightBezierBottomX)) + rightBezierBottomX
+					default:
+						return rightBezierTopX
+					}
+				}
+				
+				return (0 ... rowCount)
+					.map { Double($0) / Double(rowCount) }
+					.flatMap { position -> [SIMD2<Double>] in
+						let y = (topEdgeVerticalPosition * position) + (bottomEdgeVerticalPosition * (1 - position))
+						let xMin = leftBezierPosition(forY: y)
+						let xMax = rightBezierPosition(forY: y)
+						return [SIMD2(xMin, y), SIMD2(xMax, y)]
+					}
+					.map(SIMD2<Float>.init)
+			}
+			
 		}
 	}()
 	
@@ -128,8 +191,8 @@ imageNode.warpGeometry = SKWarpGeometryGrid(
 	destinationPositions: initialPositions
 )
 
-let finalFrame = CGRect(x: 640, y: 0, width: 50, height: 50)
+let finalFrame = CGRect(x: 640, y: 550, width: 50, height: 50)
 	.normalized(in: skView.frame)
 
-imageNode.run(genie(maximized: initialFrame, minimized: finalFrame, direction: .minimize, edge: .top))
-imageNode.run(genie(maximized: initialFrame, minimized: finalFrame, direction: .maximize, edge: .top))
+imageNode.run(genie(maximized: initialFrame, minimized: finalFrame, direction: .minimize, edge: .bottom))
+imageNode.run(genie(maximized: initialFrame, minimized: finalFrame, direction: .maximize, edge: .bottom))
