@@ -2,7 +2,14 @@ import SpriteKit
 import PlaygroundSupport
 
 enum GenieAnimationEdge {
-	case top, bottom
+	case top, bottom, left
+	
+	var isHorizontal: Bool {
+		switch self {
+		case .top, .bottom: return true
+		case .left: return false
+		}
+	}
 }
 
 enum GenieAnimationDirection {
@@ -17,7 +24,8 @@ func genie(maximized: CGRect, minimized: CGRect, direction: GenieAnimationDirect
 	let fps = 60.0
 	let frameCount = duration * fps
 
-	let rowCount = 50
+	let rowCount = edge.isHorizontal ? 50 : 1
+	let columnCount = edge.isHorizontal ? 1 : 50
 	
 	let positions: [[SIMD2<Float>]] = {
 		switch edge {
@@ -145,13 +153,84 @@ func genie(maximized: CGRect, minimized: CGRect, direction: GenieAnimationDirect
 					.map(SIMD2<Float>.init)
 			}
 			
+		case .left:
+			let topBezierLeftY = Double(maximized.maxY)
+			let bottomBezierLeftY = Double(maximized.minY)
+			
+			let topEdgeDistanceToMove = Double(minimized.maxY - maximized.maxY)
+			let bottomEdgeDistanceToMove = Double(minimized.minY - maximized.minY)
+			let horizontalDistanceToMove = Double(minimized.minX - maximized.minX)
+			
+			let bezierLeftX = Double(maximized.minX)
+			let bezierRightX = Double(minimized.minX)
+			let bezierWidth = bezierRightX - bezierLeftX
+			
+			return stride(from: 0, to: frameCount, by: 1).map { frame in
+				let fraction = (frame / (frameCount - 1))
+				let slideProgress = max(0, min(1, fraction/slideAnimationEndFraction))
+				let translateProgress = max(0, min(1, (fraction - translateAnimationStartFraction)/(1 - translateAnimationStartFraction)))
+				
+				let translation = translateProgress * horizontalDistanceToMove
+				let leftEdgeHorizontalPosition = Double(maximized.minX) + translation
+				let rightEdgeVerticalPosition = min(
+					Double(maximized.maxX) + translation,
+					Double(minimized.maxX)
+				)
+				
+				let topBezierRightY = topBezierLeftY + (slideProgress * topEdgeDistanceToMove)
+				let bottomBezierRightY = bottomBezierLeftY + (slideProgress * bottomEdgeDistanceToMove)
+				
+				func topBezierPosition(forX x: Double) -> Double {
+					switch x {
+					case ..<bezierLeftX:
+						return topBezierLeftY
+					case bezierLeftX ..< bezierRightX:
+						let progress = ((x - bezierLeftX) / bezierWidth).quadraticEaseInOut
+						return (progress * (topBezierRightY - topBezierLeftY)) + topBezierLeftY
+					default:
+						return topBezierRightY
+					}
+				}
+				
+				func bottomBezierPosition(forX x: Double) -> Double {
+					switch x {
+					case ..<bezierLeftX:
+						return bottomBezierLeftY
+					case bezierLeftX ..< bezierRightX:
+						let progress = ((x - bezierLeftX) / bezierWidth).quadraticEaseInOut
+						return (progress * (bottomBezierRightY - bottomBezierLeftY)) + bottomBezierLeftY
+					default:
+						return bottomBezierRightY
+					}
+				}
+				
+				let topEdgePositions = (0 ... columnCount)
+					.map { Double($0) / Double(columnCount) }
+					.map { position -> SIMD2<Double> in
+						let x = (leftEdgeHorizontalPosition * (1 - position)) + (rightEdgeVerticalPosition * position)
+						let y = topBezierPosition(forX: x)
+						return SIMD2(x, y)
+					}
+					.map(SIMD2<Float>.init)
+				
+				let bottomEdgePositions = (0 ... columnCount)
+					.map { Double($0) / Double(columnCount) }
+					.map { position -> SIMD2<Double> in
+						let x = (leftEdgeHorizontalPosition * (1 - position)) + (rightEdgeVerticalPosition * position)
+						let y = bottomBezierPosition(forX: x)
+						return SIMD2(x, y)
+					}
+					.map(SIMD2<Float>.init)
+				
+				return bottomEdgePositions + topEdgePositions
+			}
 		}
 	}()
 	
 	let orientedPositions = direction == .minimize ? positions : positions.reversed()
 	
 	let warps = orientedPositions.map {
-		SKWarpGeometryGrid(columns: 1, rows: rowCount, destinationPositions: $0)
+		SKWarpGeometryGrid(columns: columnCount, rows: rowCount, destinationPositions: $0)
 	}
 	
 	return SKAction.animate(
@@ -191,8 +270,8 @@ imageNode.warpGeometry = SKWarpGeometryGrid(
 	destinationPositions: initialPositions
 )
 
-let finalFrame = CGRect(x: 640, y: 550, width: 50, height: 50)
+let finalFrame = CGRect(x: 750, y: 275, width: 50, height: 50)
 	.normalized(in: skView.frame)
 
-imageNode.run(genie(maximized: initialFrame, minimized: finalFrame, direction: .minimize, edge: .bottom))
-imageNode.run(genie(maximized: initialFrame, minimized: finalFrame, direction: .maximize, edge: .bottom))
+imageNode.run(genie(maximized: initialFrame, minimized: finalFrame, direction: .minimize, edge: .left))
+imageNode.run(genie(maximized: initialFrame, minimized: finalFrame, direction: .maximize, edge: .left))
