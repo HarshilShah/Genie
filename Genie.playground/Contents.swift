@@ -1,7 +1,11 @@
 import SpriteKit
 import PlaygroundSupport
 
-func genie(maximized: CGRect, minimized: CGRect) -> SKAction {
+enum GenieAnimationDirection {
+	case minimize, maximize
+}
+
+func genie(maximized: CGRect, minimized: CGRect, direction: GenieAnimationDirection) -> SKAction {
 	let slideAnimationEndFraction = 0.5
 	let translateAnimationStartFraction = 0.4
 	
@@ -72,7 +76,9 @@ func genie(maximized: CGRect, minimized: CGRect) -> SKAction {
 			.map(SIMD2<Float>.init)
 	}
 	
-	let warps = positions.map {
+	let orientedPositions = direction == .minimize ? positions : positions.reversed()
+	
+	let warps = orientedPositions.map {
 		SKWarpGeometryGrid(columns: 1, rows: rowCount, destinationPositions: $0)
 	}
 	
@@ -116,4 +122,5 @@ imageNode.warpGeometry = SKWarpGeometryGrid(
 let finalFrame = CGRect(x: 640, y: 0, width: 50, height: 50)
 	.normalized(in: skView.frame)
 
-imageNode.run(genie(maximized: initialFrame, minimized: finalFrame))
+imageNode.run(genie(maximized: initialFrame, minimized: finalFrame, direction: .minimize))
+imageNode.run(genie(maximized: initialFrame, minimized: finalFrame, direction: .maximize))
